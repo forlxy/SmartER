@@ -61,6 +61,7 @@ import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
@@ -88,9 +89,11 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
     private Resident object;
     LinearLayout chartLayout;
     Calendar myCalendar;
-
+    List<String> list;
+    ArrayAdapter<String> adapter;
     EditText datePicker;
 
+    String availableDate;
     int viewType;
 
     int type;
@@ -99,10 +102,13 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
 
         View newView = inflater.inflate(R.layout.fragment_report, container, false);
-
+        availableDate = "";
 //        btChart = newView.findViewById(R.id.bt_chart);
 //        spChart = newView.findViewById(R.id.sp_chart);
         spChartType = newView.findViewById(R.id.sp_charttype);
+        list = Arrays.asList(getResources().getStringArray(R.array.charttype_array));
+        adapter = new ArrayAdapter<String>(getActivity(), R.layout.spinner_item,list);
+        spChartType.setAdapter(adapter);
 
         spChartType.setOnItemSelectedListener(this);
 
@@ -119,9 +125,14 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
 //        Resources res = getResources();
         spChart = new Spinner(getActivity());
-        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(getActivity(),
-                R.array.chart_array, android.R.layout.simple_spinner_item);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+//        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(getActivity(),
+//                R.array.chart_array, R.layout.spinner_item);
+//        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+
+        list = Arrays.asList(getResources().getStringArray(R.array.chart_array));
+        adapter = new ArrayAdapter<String>(getActivity(), R.layout.spinner_item,list);
+
         spChart.setAdapter(adapter);
         spChart.setOnItemSelectedListener(this);
 
@@ -176,9 +187,9 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
 //        Resources res = getResources();
             spChart = new Spinner(getActivity());
-            ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(getActivity(),
-                    R.array.chart_array, android.R.layout.simple_spinner_item);
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            list = Arrays.asList(getResources().getStringArray(R.array.chart_array));
+            adapter = new ArrayAdapter<String>(getActivity(), R.layout.spinner_item,list);
+
             spChart.setAdapter(adapter);
             spChart.setOnItemSelectedListener(this);
             chartLayout.removeAllViews();
@@ -257,14 +268,12 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
             @Override
             protected String doInBackground(Void... voids) {
                 if (type == 2) {
-
                     int counter = 1;
                     String view = "hourly";
                     if (pos == 1) {
                         view = "daily";
                         counter = 30;
                     }
-
 
                     for (int j = counter; j >= dateOffset; j--) {
                         String redURL = BASE_URL + "/Assignment/webresources/restws.usage/getHourDailyUsage/" +
@@ -302,9 +311,11 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
                                     hour = jsonObject.getInt("hours");
                                 temp = jsonObject.getDouble("temperature");
                                 if (pos == 0) {
+                                    availableDate = Datetools.getDateOffset(j);
                                     leftEntries.add(new Entry(hour, (float) usage));
                                     rightEntries.add(new Entry(hour, (float) temp));
                                 } else {
+                                    availableDate = "";
                                     leftEntries.add(new Entry(30 - j, (float) usage));
                                     rightEntries.add(new Entry(30 - j, (float) temp));
                                 }
@@ -372,8 +383,10 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
                                 if (pos == 0)
                                     hour = jsonObject.getInt("hours");
                                 if (pos == 0) {
+                                    availableDate = Datetools.getDateOffset(j);
                                     barEntries.add(new BarEntry(hour, (float) usage));
                                 } else {
+                                    availableDate = "";
                                     barEntries.add(new BarEntry(30 - j, (float) usage));
                                 }
                             }
@@ -477,6 +490,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
     private void showBarChart(int pos) {
 
+        barChart.getDescription().setText(availableDate);
         if (barEntries.size() != 0) {
             BarDataSet set = new BarDataSet(barEntries, "Usage");
             BarData data = new BarData(set);
@@ -518,7 +532,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
         }
     }
 
-    @SuppressLint("StaticFieldLeak")
+    @SuppressLint({"StaticFieldLeak", "ClickableViewAccessibility"})
     private void showPieChart(int pos) {
 
 
@@ -613,6 +627,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
 
     public void showLineChart(int pos) {
+        lineChart.getDescription().setText(availableDate);
         if (leftEntries.size() != 0 && rightEntries.size() != 0) {
             if (lineChart.getData() != null &&
                     lineChart.getData().getDataSetCount() > 0) {

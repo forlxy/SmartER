@@ -12,6 +12,7 @@
         android:entries="@array/charttype_array" />
 
     <LinearLayout
+        android:layout_marginTop="8dp"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:id="@+id/chart_layout"
