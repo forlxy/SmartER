@@ -1,0 +1,36 @@
+<resources>
+    <string name="app_name">SmartER</string>
+
+    <string name="navigation_drawer_open">Open navigation drawer</string>
+    <string name="navigation_drawer_close">Close navigation drawer</string>
+    <string name="open_weather_maps_app_id">71f1626b7b16fb32f75d88d52a4aa147</string>
+    <string name="action_settings">Settings</string>
+    <string name="place_not_found">place_not_found</string>
+    <string name="password">Password</string>
+    <string name="username">Username</string>
+    <string name="register">Not have yet? Click here to create one</string>
+
+    <string-array name="num_array">
+        <item>1</item>
+        <item>2</item>
+        <item>3</item>
+        <item>4</item>
+        <item>5</item>
+    </string-array>
+
+    <string-array name="provider_array">
+        <item>AGL</item>
+        <item>Origin Energy</item>
+    </string-array>
+
+    <string-array name="chart_array">
+        <item>Hourly</item>
+        <item>Daily</item>
+    </string-array>
+
+    <string-array name="charttype_array">
+        <item>PieChart</item>
+        <item>BarChart</item>
+        <item>LineChart</item>
+    </string-array>
+</resources>
