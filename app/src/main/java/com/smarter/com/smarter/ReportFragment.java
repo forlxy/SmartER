@@ -63,10 +63,12 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutionException;
 
+import static com.smarter.tools.Datetools.getDateOffsetD;
 import static com.smarter.tools.Tool.BASE_URL;
 
 public class ReportFragment extends Fragment implements AdapterView.OnItemSelectedListener {
@@ -97,6 +99,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
     int viewType;
 
     int type;
+    private ProgressDialog progDailog;
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
@@ -159,7 +162,21 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
         changeType = false;
         changeView = true;
         myCalendar = Calendar.getInstance();
-        object = getArguments().getParcelable("resident");
+
+        if (savedInstanceState != null)
+            object = savedInstanceState.getParcelable("resident");
+        else
+            object = ((MainActivity)getActivity()).getObject();
+//        object = getArguments().getParcelable("resident");
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState);
+        // Save UI state changes to the savedInstanceState.
+        // This bundle will be passed to onCreate if the process is
+        // killed and restarted.
+        savedInstanceState.putParcelable("resident", object);
     }
 
     private void clearAllEntries()
@@ -170,11 +187,27 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
         pieEntries.clear();
     }
 
+
+    private void showProgressDialog() {
+        if (progDailog == null) {
+            progDailog = new ProgressDialog(getActivity());
+            progDailog.setMessage("Loading...");
+            progDailog.setIndeterminate(false);
+            progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progDailog.setCancelable(false);
+            progDailog.show();
+        }
+        progDailog.show();
+    }
+
+    private void dismissProgressDialog() {
+        if (progDailog != null && progDailog.isShowing()) {
+            progDailog.dismiss();
+        }
+    }
+    
     @Override
     public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-
-
-
         if (parent.getId() == R.id.sp_charttype)
         {
             lineChart = new LineChart(getActivity());
@@ -185,7 +218,6 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
             barChart.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
             pieChart.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
 
-//        Resources res = getResources();
             spChart = new Spinner(getActivity());
             list = Arrays.asList(getResources().getStringArray(R.array.chart_array));
             adapter = new ArrayAdapter<String>(getActivity(), R.layout.spinner_item,list);
@@ -196,31 +228,22 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
             type = position;
             if (type == 0){
-//                changeType = false;
                 datePicker = new EditText(getActivity());
                 chartLayout.addView(datePicker);
                 chartLayout.addView(pieChart);
                 updateChart(viewType, type);
             } else if (type == 1){
-//                changeType = true;
                 chartLayout.addView(spChart);
                 chartLayout.addView(barChart);
             } else if (type == 2) {
-//                changeType = true;
                 chartLayout.addView(spChart);
                 chartLayout.addView(lineChart);
             }
         } else {
-//            changeView = true;
             viewType = position;
             updateChart(viewType, type);
         }
-//        if (changeView && changeType)
-//        if(changeType)
-//            changeView = false;
-//        else
-//            changeView = true;
-//        changeType = false;
+
     }
 
     @Override
@@ -239,31 +262,15 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
     }
 
-    public void setUsage(double usage)
-    {
-        this.usage = usage;
-    }
-
-    public void setTemp(double temp)
-    {
-        this.temp = temp;
-    }
-
     @SuppressLint("StaticFieldLeak")
     public void getUsageTemp(final int dateOffset, final int pos, final int type)
     {
 
         asyncTask = new AsyncTask<Void, Void, String>() {
-            ProgressDialog progDailog;
             @Override
             protected void onPreExecute() {
                 super.onPreExecute();
-                progDailog = new ProgressDialog(getActivity());
-                progDailog.setMessage("Loading...");
-                progDailog.setIndeterminate(false);
-                progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                progDailog.setCancelable(false);
-                progDailog.show();
+                showProgressDialog();
             }
             @Override
             protected String doInBackground(Void... voids) {
@@ -473,7 +480,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
             @Override
             protected void onPostExecute(String s) {
                 super.onPostExecute(s);
-                progDailog.dismiss();
+                dismissProgressDialog();
                 if (type == 2)
                     showLineChart(pos);
                 else if (type == 1)
@@ -554,9 +561,23 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
         datePicker.setOnTouchListener(new View.OnTouchListener() {
             public boolean onTouch (View v, MotionEvent event) {
                 if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    new DatePickerDialog(getActivity(), date, myCalendar
+                    DatePickerDialog pickerDialog = new DatePickerDialog(getActivity(), date, myCalendar
                             .get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
-                            myCalendar.get(Calendar.DAY_OF_MONTH)).show();
+                            myCalendar.get(Calendar.DAY_OF_MONTH));
+
+                    Date today = getDateOffsetD(0);
+                    Calendar c = Calendar.getInstance();
+                    c.setTime(today);
+                    c.add( Calendar.YEAR, -20 );
+                    long minDate = c.getTime().getTime();
+
+                    c = Calendar.getInstance();
+                    c.setTime(today);
+                    long maxDate = c.getTime().getTime();
+
+                    pickerDialog.getDatePicker().setMaxDate(maxDate);
+                    pickerDialog.getDatePicker().setMinDate(minDate);
+                    pickerDialog.show();
                 }
                 return true; // the listener has consumed the event
             }
@@ -582,7 +603,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
         pieChart.getDescription().setEnabled(false);
         pieChart.setExtraOffsets(5, 10, 5, 5);
-
+        pieChart.setCenterText("Usage");
         pieChart.setUsePercentValues(true);
         pieChart.setDragDecelerationFrictionCoef(0.95f);
 
@@ -724,9 +745,16 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 //                rightAxis.setGranularityEnabled(false);
 
 
+            lineChart.animateX(2500);
             lineChart.invalidate();
         } else {
             lineChart.clear();
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        dismissProgressDialog();
     }
 }

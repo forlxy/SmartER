@@ -34,6 +34,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.util.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -41,6 +42,7 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 
+import static com.smarter.tools.Datetools.getDateOffsetD;
 import static com.smarter.tools.Tool.BASE_URL;
 
 public class SecondRegisFragment extends Fragment {
@@ -53,6 +55,8 @@ public class SecondRegisFragment extends Fragment {
     Resident newResident;
     Calendar myCalendar;
     Context context;
+    private ProgressDialog progDailog;
+
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
@@ -87,16 +91,10 @@ public class SecondRegisFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 new AsyncTask<Void, Void, String>() {
-                    ProgressDialog progDailog;
                     @Override
                     protected void onPreExecute() {
                         super.onPreExecute();
-                        progDailog = new ProgressDialog(getActivity());
-                        progDailog.setMessage("Loading...");
-                        progDailog.setIndeterminate(false);
-                        progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                        progDailog.setCancelable(false);
-                        progDailog.show();
+                        showProgressDialog();
                     }
                     @Override
                     protected String doInBackground(Void... voids) {
@@ -216,7 +214,7 @@ public class SecondRegisFragment extends Fragment {
                             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                             startActivity(intent);
                         }
-                        progDailog.dismiss();
+                        dismissProgressDialog();
                     }
                 }.execute();
 
@@ -241,9 +239,25 @@ public class SecondRegisFragment extends Fragment {
         et_date.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                new DatePickerDialog(context, date, myCalendar
+
+                DatePickerDialog pickerDialog = new DatePickerDialog(context, date, myCalendar
                         .get(Calendar.YEAR), myCalendar.get(Calendar.MONTH),
-                        myCalendar.get(Calendar.DAY_OF_MONTH)).show();
+                        myCalendar.get(Calendar.DAY_OF_MONTH));
+
+                Date today = getDateOffsetD(0);
+                Calendar c = Calendar.getInstance();
+                c.setTime(today);
+                c.add( Calendar.YEAR, -20 );
+                long minDate = c.getTime().getTime();
+
+                c = Calendar.getInstance();
+                c.setTime(today);
+                long maxDate = c.getTime().getTime();
+                
+                pickerDialog.getDatePicker().setMaxDate(maxDate);
+                pickerDialog.getDatePicker().setMinDate(minDate);
+                pickerDialog.show();
+
 
             }
         });
@@ -263,4 +277,28 @@ public class SecondRegisFragment extends Fragment {
         et_date.setText(sdf.format(myCalendar.getTime()));
     }
 
+
+    private void showProgressDialog() {
+        if (progDailog == null) {
+            progDailog = new ProgressDialog(getActivity());
+            progDailog.setMessage("Loading...");
+            progDailog.setIndeterminate(false);
+            progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progDailog.setCancelable(false);
+            progDailog.show();
+        }
+        progDailog.show();
+    }
+
+    private void dismissProgressDialog() {
+        if (progDailog != null && progDailog.isShowing()) {
+            progDailog.dismiss();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        dismissProgressDialog();
+    }
 }

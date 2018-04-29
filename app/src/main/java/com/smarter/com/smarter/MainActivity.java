@@ -49,41 +49,22 @@ public class MainActivity extends AppCompatActivity
         Intent intent = getIntent();
         object = intent.getParcelableExtra("resident");
         username = intent.getStringExtra("username");
-//        address = intent.getStringExtra("address");
-//        postcode = intent.getStringExtra("postcode");
-//        providerName = intent.getStringExtra("providerName");
-//        resid = intent.getIntExtra("resid", -1);
-//        fname = intent.getStringExtra("fname");
-//        bd.putString("address",address);
-//        bd.putString("postcode",postcode);
-//        bd.putString("providerName",providerName);
-//        bd.putInt("resid",resid);
-//        bd.putString("fname",fname);
-        HomeFragment hf = new HomeFragment();
-        Bundle bd = new Bundle();
-        bd.putParcelable("resident", object);
-        hf.setArguments(bd);
-        FragmentManager fragmentManager = getFragmentManager();
-        fragmentManager.beginTransaction().replace(R.id.content_frame, hf).commit();
+
+        if(savedInstanceState != null)
+            object = savedInstanceState.getParcelable("resident");
+
+        if(savedInstanceState == null) {
+            HomeFragment hf = new HomeFragment();
+            Bundle bd = new Bundle();
+            bd.putParcelable("resident", object);
+            hf.setArguments(bd);
+            FragmentManager fragmentManager = getFragmentManager();
+            fragmentManager.beginTransaction().replace(R.id.content_frame, hf).commit();
+        }
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
-        FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
-        fab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-//                Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-//                        .setAction("Action", null).show();
-                Intent intent = new Intent(getApplicationContext(), DbUpdateReceiver.class);
-                byte[] bytes = ParcelableUtil.marshall(object);
-
-                intent.putExtra("resident", bytes);
-                intent.putExtra("flag", true);
-                sendBroadcast(intent);
-
-            }
-        });
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
@@ -100,6 +81,21 @@ public class MainActivity extends AppCompatActivity
         timerAlarm();
     }
 
+
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState);
+        // Save UI state changes to the savedInstanceState.
+        // This bundle will be passed to onCreate if the process is
+        // killed and restarted.
+        savedInstanceState.putParcelable("resident", object);
+        // etc.
+    }
+
+    public Resident getObject()
+    {
+        return object;
+    }
     private void timerAlarm() {
         Intent intent = new Intent(this, DbUpdateReceiver.class);
 //        intent.putExtra("address", object.getAddress());

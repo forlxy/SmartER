@@ -10,7 +10,10 @@ import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.CompoundButton;
+import android.widget.Spinner;
 import android.widget.ToggleButton;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -47,8 +50,10 @@ import java.net.ProtocolException;
 import java.net.URL;
 import java.text.ParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
@@ -65,54 +70,86 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
 //    private MapboxMap mMapboxMap;
 //    private MapView mMapView;
     private GoogleMap mMap;
-    private ToggleButton toggleButton;
+//    private ToggleButton toggleButton;
     private Resident object;
     private FragmentActivity myContext;
     MapView mMapView;
+    private Spinner sp_map_viewtype;
 //    private GoogleMap googleMap;
     private String availDate;
-    private Double tmpUsage;
-    private int tmphour;
+    ProgressDialog progDailog;
     private ArrayList<Marker> mMarkerArray = new ArrayList<Marker>();
-    Map<Pair<Double,Double>, Resident> map=new HashMap<Pair<Double,Double>, Resident>();
+    Map<Pair<Double,Double>, MapResidUsage> map=new HashMap<Pair<Double,Double>, MapResidUsage>();
 
-    public void setTmpUsage(double value)
-    {
-        tmpUsage = value;
-    }
+    public class MapResidUsage{
+        Resident resident;
+        double usage;
+        int hour;
 
-    public void setTmpHour(int value)
-    {
-        tmphour = value;
+        public MapResidUsage(Resident rd){
+            resident = rd;
+        }
+
+        public double getUsage() {
+            return usage;
+        }
+
+        public int getHour() {
+            return hour;
+        }
+
+        public Resident getResident() {
+            return resident;
+        }
+
+        public void setHour(int hour) {
+            this.hour = hour;
+        }
+
+        public void setResident(Resident resident) {
+            this.resident = resident;
+        }
+
+        public void setUsage(double usage) {
+            this.usage = usage;
+        }
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState){
 
         View newView = inflater.inflate(R.layout.fragment_map, container, false);
-        toggleButton = newView.findViewById(R.id.toggleButton);
-        toggleButton.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+        sp_map_viewtype = newView.findViewById(R.id.sp_map_viewtype);
 
+
+//        List<String> list = Arrays.asList(getResources().getStringArray(R.array.chart_array));
+//
+//        ArrayAdapter<String> adapter = new ArrayAdapter<String>(getActivity(), R.layout.spinner_item_white, list);
+//
+//        sp_map_viewtype.setAdapter(adapter);
+
+        sp_map_viewtype.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
                 for (Marker marker : mMarkerArray) {
                     Pair<Double,Double> pair = new Pair<>(marker.getPosition().latitude, marker.getPosition().longitude);
-                    int resid = map.get(pair).getResid();
-                    boolean status = toggleButton.isChecked();
-                    if(status)
-                        gerUsage("daily",marker, resid, null);
+                    if(position == 1)
+                        gerUsage(pair, "daily",marker, null);
                     else
-                        gerUsage("hourly",marker, resid, null);
-
-                    mMapView.onResume();
-
-
+                        gerUsage(pair, "hourly",marker, null);
                 }
             }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
         });
+
         mMapView = (MapView) newView.findViewById(R.id.map);
         mMapView.onCreate(savedInstanceState);
-        mMapView.onResume(); // needed to get the map to display immediately
+        if(mMapView != null)
+            mMapView.onResume(); // needed to get the map to display immediately
 
         try {
             MapsInitializer.initialize(getActivity().getApplicationContext());
@@ -121,23 +158,16 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
         }
         mMapView.getMapAsync(this);
 
-        toggleButton.setTextOff("Hourly");
-        toggleButton.setText("Hourly");
-        toggleButton.setTextOn("Daily");
         return newView;
 
     }
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-//        mMapView = findViewById(R.id.mapquestMapView);
-//        mMapView.onCreate(savedInstanceState);
-//        MapboxAccountManager.start(getApplicationContext());
-//        address = getArguments().getString("address", "");
-//        WeatherFragment.WeatherUpdater wu = new WeatherFragment.WeatherUpdater();
-//        wu.execute(Weather.getCity());
-//        setContentView(R.layout.fragment_map);
-        object = getArguments().getParcelable("resident");
+        if (savedInstanceState != null)
+            object = savedInstanceState.getParcelable("resident");
+        else
+            object = ((MainActivity)getActivity()).getObject();
     }
 
 
@@ -154,16 +184,11 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
     private void gerAllResident()
     {
         AsyncTask<Void, Void, String> ayt = new AsyncTask<Void, Void, String>() {
-            ProgressDialog progDailog;
+
             @Override
             protected void onPreExecute() {
                 super.onPreExecute();
-                progDailog = new ProgressDialog(getActivity());
-                progDailog.setMessage("Loading...");
-                progDailog.setIndeterminate(false);
-                progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                progDailog.setCancelable(false);
-                progDailog.show();
+                showProgressDialog();
             }
             @Override
             protected String doInBackground(Void... voids) {
@@ -193,13 +218,10 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
                         String address = jsonRead.getJSONObject(i).getString("address");
                         MapGeocode mg = new MapGeocode(address);
                         Pair<Double, Double> pair = mg.getLatLon();
-                        map.put(pair, resident);
+                        map.put(pair, new MapResidUsage(resident));
                     }
                     redConnection.disconnect();
-
-
                     //get recent date
-
                     redURL = BASE_URL + "/Assignment/webresources/restws.usage/";
                     redRestful = new URL(redURL);
                     redConnection = (HttpURLConnection) redRestful.openConnection();
@@ -243,69 +265,57 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
             @Override
             protected void onPostExecute(String s) {
 
-                // Add a marker in Sydney and move the camera
-
-                boolean status = toggleButton.isChecked();
-
+                int pos = sp_map_viewtype.getSelectedItemPosition();
                 for(final Pair<Double,Double> pair: map.keySet()) {
-//                    mMapView.getMapAsync(new OnMapReadyCallback() {
-//                        @Override
-//                        public void onMapReady(MapboxMap mapboxMap) {
-//                            mMapboxMap = mapboxMap;
-//                            mMapboxMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(pair.first, pair.second), 11));
-//                            addMarker(mMapboxMap, pair);
-//                        }
-//                    });
-
                     LatLng des = new LatLng(pair.first, pair.second);
-                    MarkerOptions mo = new MarkerOptions().position(des).title(map.get(pair).getFname() + " " + map.get(pair).getSname());
+                    MarkerOptions mo = new MarkerOptions().position(des).title(map.get(pair).getResident().getFname() + " " + map.get(pair).getResident().getSname());
 
-                    if(status) {
-                        gerUsage("daily",null, map.get(pair).getResid(), mo);
+                    if(pos == 1) {
+                        gerUsage(pair,"daily",null, mo);
                     }else {
-                        gerUsage("hourly",null, map.get(pair).getResid(), mo);
+                        gerUsage(pair,"hourly",null, mo);
                     }
 
                     mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(des,15));
 
                 }
-                progDailog.dismiss();
+                dismissProgressDialog();
                 super.onPostExecute(s);
             }
         };
-        try {
-            ayt.execute().get();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
+        ayt.execute();
+    }
+
+    private void showProgressDialog() {
+        if (progDailog == null) {
+            progDailog = new ProgressDialog(getActivity());
+            progDailog.setMessage("Loading...");
+            progDailog.setIndeterminate(false);
+            progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progDailog.setCancelable(false);
+            progDailog.show();
+        }
+        progDailog.show();
+    }
+
+    private void dismissProgressDialog() {
+        if (progDailog != null && progDailog.isShowing()) {
+            progDailog.dismiss();
         }
     }
 
-
     @SuppressLint("StaticFieldLeak")
-    private void gerUsage(final String view, final Marker marker, final int resid, final MarkerOptions mo )
+    private void gerUsage(final Pair<Double,Double> pair, final String view, final Marker marker, final MarkerOptions mo )
     {
-
         AsyncTask<Void, Void, String> asyncTask = new AsyncTask<Void, Void, String>() {
-            ProgressDialog progDailog;
+            int resid = map.get(pair).getResident().getResid();
             @Override
             protected void onPreExecute() {
                 super.onPreExecute();
-                progDailog = new ProgressDialog(getActivity());
-                progDailog.setMessage("Loading...");
-                progDailog.setIndeterminate(false);
-                progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                progDailog.setCancelable(false);
-                progDailog.show();
             }
             @Override
             protected String doInBackground(Void... voids) {
-                String redURL = BASE_URL + "/Assignment/webresources/restws.usage/getHourDailyUsage/"
-                        + resid
-                        + "/"
-                        + availDate
-                        + "/" + view;
+                String redURL = String.format("%s/Assignment/webresources/restws.usage/getHourDailyUsage/%d/%s/%s", BASE_URL, resid, availDate, view);
                 try {
                     URL redRestful = new URL(redURL);
                     HttpURLConnection redConnection;
@@ -325,18 +335,18 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
                         jsonBuilder.append(tmp).append("\n");
                     reader.close();
                     JSONArray jsonRead = new JSONArray(jsonBuilder.toString());
-                    JSONObject jsonObject = null;
+                    JSONObject jsonObject;
                     if(jsonRead.length() > 0) {
                         jsonObject = jsonRead.getJSONObject(jsonRead.length() - 1);
-                        setTmpUsage(jsonObject.getDouble("usage"));
+                        map.get(pair).setUsage(jsonObject.getDouble("usage"));
 
                         if (view.equals("hourly"))
-                            setTmpHour(jsonObject.getInt("hours"));
+                            map.get(pair).setHour(jsonObject.getInt("hours"));
                         else
-                            setTmpHour(-1);
+                            map.get(pair).setHour(-1);
                     } else {
-                        setTmpUsage(0);
-                        setTmpHour(-1);
+                        map.get(pair).setUsage(0);
+                        map.get(pair).setHour(-1);
                     }
 
                     redConnection.disconnect();
@@ -357,10 +367,9 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
 
             @Override
             protected void onPostExecute(String s) {
-
                 if(mo != null) {
-                    if (view.equals("Daily")) {
-                        if (Tool.largerUsageDailyMap(getActivity(), tmpUsage)) {
+                    if (view.equals("daily")) {
+                        if (Tool.largerUsageDailyMap(getActivity(), map.get(pair).getUsage())) {
                             mo.icon(BitmapDescriptorFactory
                                     .defaultMarker(BitmapDescriptorFactory.HUE_RED));
                         } else {
@@ -369,7 +378,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
                         }
                     }
                     else{
-                        if (Tool.largerUsageHourlyMap(getActivity(), tmphour , tmpUsage)) {
+                        if (Tool.largerUsageHourlyMap(getActivity(), map.get(pair).getHour() , map.get(pair).getUsage())) {
                             mo.icon(BitmapDescriptorFactory
                                     .defaultMarker(BitmapDescriptorFactory.HUE_RED));
                         } else {
@@ -381,24 +390,40 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
                     Marker marker = mMap.addMarker(mo);
                     mMarkerArray.add(marker);
 
-                    mMapView.onResume();
                 }
 
-                if (marker != null)
-                    marker.setSnippet("Usage at " + availDate + "is :" + tmpUsage);
+                if (marker != null) {
+                    if (view.equals("daily")) {
+                        if (Tool.largerUsageDailyMap(getActivity(), map.get(pair).getUsage())) {
+                            marker.setIcon(BitmapDescriptorFactory
+                                    .defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                        } else {
+                            marker.setIcon(BitmapDescriptorFactory
+                                    .defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+                        }
+                    }
+                    else{
+                        if (Tool.largerUsageHourlyMap(getActivity(), map.get(pair).getHour() , map.get(pair).getUsage())) {
+                            marker.setIcon(BitmapDescriptorFactory
+                                    .defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                        } else {
+                            marker.setIcon(BitmapDescriptorFactory
+                                    .defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+                        }
+                    }
 
-                progDailog.dismiss();
+                    marker.setSnippet("Usage at " + availDate + " is : " + map.get(pair).getUsage() + "kWh");
+
+                    if (marker.isInfoWindowShown()) {
+                        marker.hideInfoWindow();
+                        marker.showInfoWindow();
+                    }
+                }
                 super.onPostExecute(s);
             }
         };
 
-        try {
-            asyncTask.execute().get();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
+        asyncTask.execute();
     }
 
 
@@ -423,6 +448,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
         gerAllResident();
         mMap.setOnMarkerClickListener(this);
         mMap.animateCamera(CameraUpdateFactory.zoomIn());
+        mMap.getUiSettings().setMapToolbarEnabled(false);
         // Zoom out to zoom level 10, animating with a duration of 2 seconds.
         mMap.animateCamera(CameraUpdateFactory.zoomTo(15), 2000, null);
     }
@@ -430,21 +456,23 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
     @Override
     public boolean onMarkerClick(Marker marker) {
         Pair<Double,Double> pair = new Pair<>(marker.getPosition().latitude, marker.getPosition().longitude);
-        int resid = map.get(pair).getResid();
-        boolean status = toggleButton.isChecked();
-        if(status)
-            gerUsage("daily",marker, resid, null);
+        int pos = sp_map_viewtype.getSelectedItemPosition();
+        if(pos == 1)
+            gerUsage(pair,"daily",marker, null);
         else
-            gerUsage("hourly",marker, resid, null);
-
+            gerUsage(pair, "hourly",marker, null);
         return false;
     }
 
+    public Map<Pair<Double, Double>, MapResidUsage> getLocResMap() {
+        return map;
+    }
 
     @Override
     public void onResume() {
         super.onResume();
-        mMapView.onResume();
+        if(mMapView != null)
+            mMapView.onResume();
     }
 
     @Override
@@ -456,6 +484,7 @@ public class MapFragment extends Fragment implements OnMapReadyCallback, GoogleM
     @Override
     public void onDestroy() {
         super.onDestroy();
+        dismissProgressDialog();
         mMapView.onDestroy();
     }
 

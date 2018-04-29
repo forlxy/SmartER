@@ -1,11 +1,15 @@
 package com.smarter.com.smarter;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.Fragment;
 import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
+import android.support.design.widget.FloatingActionButton;
 import android.util.Log;
 import android.util.Pair;
 import android.view.LayoutInflater;
@@ -17,6 +21,7 @@ import android.widget.Toast;
 
 import com.smarter.tools.Datetools;
 import com.smarter.tools.MapGeocode;
+import com.smarter.tools.ParcelableUtil;
 import com.smarter.tools.Tool;
 import com.smarter.tools.Weather;
 
@@ -36,6 +41,10 @@ public class HomeFragment extends Fragment {
 
     ImageView imgView;
     Resident object;
+    private Context context;
+
+    private Activity activity;
+    private ProgressDialog progDailog;
 
     public HomeFragment(){
         handler = new Handler();
@@ -44,7 +53,7 @@ public class HomeFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container,
                              Bundle savedInstanceState) {
-        View rootView = inflater.inflate(R.layout.fragment_weather, container, false);
+        View rootView = inflater.inflate(R.layout.fragment_home, container, false);
         datetime = rootView.findViewById(R.id.tv_datetime);
         firstname = rootView.findViewById(R.id.tv_firstname);
         message = rootView.findViewById(R.id.tv_message);
@@ -53,7 +62,23 @@ public class HomeFragment extends Fragment {
         datetime.setText("Now is " + Datetools.getCurTime());
         firstname.setText("Welcome, " + object.getFname() + "!");
 
-        if (Tool.largerUsageHourly(getActivity(),object.getResid())){
+
+        FloatingActionButton fab = rootView.findViewById(R.id.fab);
+        fab.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(activity, DbUpdateReceiver.class);
+                byte[] bytes = ParcelableUtil.marshall(object);
+
+                intent.putExtra("resident", bytes);
+                intent.putExtra("flag", true);
+                activity.sendBroadcast(intent);
+
+            }
+        });
+
+        context = getActivity();
+        if (Tool.largerUsageHourly(context,object.getResid())){
             imgView.setImageResource(R.drawable.self_improvement);
             message.setText("Your usage is larger than average! Need more improvement!");
         }
@@ -67,26 +92,64 @@ public class HomeFragment extends Fragment {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        object = getArguments().getParcelable("resident");
+
+        activity = getActivity();
+        if (savedInstanceState != null)
+            object = savedInstanceState.getParcelable("resident");
+        else
+            object = ((MainActivity)activity).getObject();
+//                getArguments().getParcelable("resident");
         getWeather();
 
     }
 
 
+    @Override
+    public void onSaveInstanceState(Bundle savedInstanceState) {
+        super.onSaveInstanceState(savedInstanceState);
+        // Save UI state changes to the savedInstanceState.
+        // This bundle will be passed to onCreate if the process is
+        // killed and restarted.
+        savedInstanceState.putParcelable("resident", object);
+        // etc.
+    }
+
+    @Override
+    public void onActivityCreated(Bundle savedInstanceState) {
+        super.onActivityCreated(savedInstanceState);
+
+        if (savedInstanceState != null) {
+            object = savedInstanceState.getParcelable("resident");
+        }
+    }
+
+
+    private void showProgressDialog() {
+        if (progDailog == null) {
+            progDailog = new ProgressDialog(getActivity());
+            progDailog.setMessage("Loading...");
+            progDailog.setIndeterminate(false);
+            progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progDailog.setCancelable(false);
+            progDailog.show();
+        }
+        progDailog.show();
+    }
+
+    private void dismissProgressDialog() {
+        if (progDailog != null && progDailog.isShowing()) {
+            progDailog.dismiss();
+        }
+    }
+
 
     @SuppressLint("StaticFieldLeak")
     private void getWeather() {
         new AsyncTask<Void, Void, Pair<Double,Double>>() {
-            ProgressDialog progDailog;
             @Override
             protected void onPreExecute() {
                 super.onPreExecute();
-                progDailog = new ProgressDialog(getActivity());
-                progDailog.setMessage("Loading...");
-                progDailog.setIndeterminate(false);
-                progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                progDailog.setCancelable(false);
-                progDailog.show();
+                showProgressDialog();
             }
             @Override
             protected Pair<Double, Double> doInBackground(Void... voids) {
@@ -97,7 +160,7 @@ public class HomeFragment extends Fragment {
             protected void onPostExecute(final Pair<Double, Double> pair) {
                 WeatherUpdater wu = new WeatherUpdater();
                 wu.execute(pair.first.toString(), pair.second.toString());
-                progDailog.dismiss();
+                dismissProgressDialog();
             }
         }.execute();
     }
@@ -106,15 +169,16 @@ public class HomeFragment extends Fragment {
     private class WeatherUpdater extends AsyncTask<String, Void, String> {
         @Override
         protected String doInBackground(String... params) {
-            final JSONObject json = Weather.getJSON(getActivity(), params[0], params[1]);
+
+            final JSONObject json = Weather.getJSON(context, params[0], params[1]);
             if(json == null){
-                getActivity().runOnUiThread(new Runnable(){
+                activity.runOnUiThread(new Runnable(){
                     public void run(){
-                        Toast.makeText(getActivity(),getActivity().getString(R.string.place_not_found),Toast.LENGTH_LONG).show();
+                        Toast.makeText(context,context.getString(R.string.place_not_found),Toast.LENGTH_LONG).show();
                     }
                 });
             } else {
-                getActivity().runOnUiThread(new Runnable(){
+                activity.runOnUiThread(new Runnable(){
                     public void run(){
                         renderWeather(json);
                     }
@@ -136,5 +200,11 @@ public class HomeFragment extends Fragment {
         }catch(Exception e){
             Log.e("home", "JSON ERROR");
         }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        dismissProgressDialog();
     }
 }

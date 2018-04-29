@@ -44,6 +44,7 @@ public class LoginActivity extends Activity {
     EditText edUser, edPasswd;
     Button btLogin;
     TextView btRegister;
+    private ProgressDialog progDailog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,16 +61,10 @@ public class LoginActivity extends Activity {
             @Override
             public void onClick(View v) {
                     new AsyncTask<Void, Void, String>() {
-                        ProgressDialog progDailog;
                         @Override
                         protected void onPreExecute() {
                             super.onPreExecute();
-                            progDailog = new ProgressDialog(LoginActivity.this);
-                            progDailog.setMessage("Loading...");
-                            progDailog.setIndeterminate(false);
-                            progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-                            progDailog.setCancelable(false);
-                            progDailog.show();
+                            showProgressDialog();
                         }
                         @Override
                         protected String doInBackground(Void... params) {
@@ -104,13 +99,9 @@ public class LoginActivity extends Activity {
                                         Resident dataToSend = rs.get(0);
                                         intent.putExtra("resident", dataToSend); // using the (String name, Parcelable value) overload!
                                         intent.putExtra("username", username); // using the (String name, Parcelable value) overload!
-//                                        intent.putExtra("address", rs.get(0).getAddress());
-//                                        intent.putExtra("fname", rs.get(0).getFname());
-//                                        intent.putExtra("postcode", rs.get(0).getPostcode());
-//                                        intent.putExtra("providerName", rs.get(0).getProviderName());
-//                                        intent.putExtra("resid", rs.get(0).getResid());
                                         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                                         startActivity(intent);
+                                        finish();
                                     }
                                     jsonReader.close();
                                 } else {
@@ -138,7 +129,7 @@ public class LoginActivity extends Activity {
                             } else {
                                 Toast.makeText(getApplicationContext(), "ERROR", Toast.LENGTH_SHORT).show();
                             }
-                            progDailog.dismiss();
+                            dismissProgressDialog();
                         }
                     }.execute();
             }
@@ -168,6 +159,30 @@ public class LoginActivity extends Activity {
         return residents;
     }
 
+
+    private void showProgressDialog() {
+        if (progDailog == null) {
+            progDailog = new ProgressDialog(this);
+            progDailog.setMessage("Loading...");
+            progDailog.setIndeterminate(false);
+            progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
+            progDailog.setCancelable(false);
+            progDailog.show();
+        }
+        progDailog.show();
+    }
+
+    private void dismissProgressDialog() {
+        if (progDailog != null && progDailog.isShowing()) {
+            progDailog.dismiss();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        dismissProgressDialog();
+    }
     public Resident readResident(JsonReader reader) throws IOException, ParseException {
         Integer resid = -1;
         String fname = "";

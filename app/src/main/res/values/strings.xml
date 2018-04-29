@@ -28,6 +28,7 @@
         <item>Daily</item>
     </string-array>
 
+
     <string-array name="charttype_array">
         <item>PieChart</item>
         <item>BarChart</item>
