@@ -39,8 +39,7 @@ import static com.smarter.tools.Tool.BASE_URL;
 public class FirstRegisFragment extends Fragment {
     EditText et_username,et_password,et_re_password;
     Button btNext;
-
-
+    
     OnNext mCallback;
 
     // Container Activity must implement this interface
