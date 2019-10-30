@@ -81,5 +81,11 @@ public final class Database {
         return db.delete(UsageEntry.TABLE_NAME, selection,selectionArgs );
     }
 
+    public int deleteAll() {
+        String[] selectionArgs = { };
+        String selection = UsageEntry.COLUMN_1 + " >= 0";
+        return db.delete(UsageEntry.TABLE_NAME, selection,selectionArgs );
+    }
+
 
 }

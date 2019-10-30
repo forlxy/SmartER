@@ -5,6 +5,7 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@color/colorPrimary"
+    android:id="@+id/login_layout"
     >
 
 
@@ -33,7 +34,6 @@
             android:ems="10"
             android:hint="@string/username"
             android:inputType="textPersonName"
-            android:text="adammn231"
             android:textColor="#ffffff"
             android:textColorHint="#ffffff"
             android:textSize="18sp" />
@@ -69,7 +69,6 @@
             android:ems="10"
             android:hint="@string/password"
             android:inputType="textPassword"
-            android:text="123456"
             android:textColor="#ffffff"
             android:textColorHint="#ffffff"
             android:textSize="18sp" />
@@ -103,7 +102,6 @@
         android:textSize="18sp"
         android:textStyle="bold"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintHorizontal_bias="0.33"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/bt_login"

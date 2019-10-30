@@ -114,9 +114,6 @@ public class Datetools {
     public static String toString( Date date ) {
 
         @SuppressLint("SimpleDateFormat") SimpleDateFormat df = new SimpleDateFormat( "yyyy-MM-dd'T'HH:mm:ssz" );
-//        TimeZone tz = TimeZone.getTimeZone( "Australia/Melbourne" );
-//        df.setTimeZone( tz );
-
         String formattedDate = df.format( date );
         if ( formattedDate.endsWith( "Z" ) ) {
             formattedDate = formattedDate.substring( 0, formattedDate.length() - 1) + "-00:00";

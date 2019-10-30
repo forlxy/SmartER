@@ -3,9 +3,14 @@ package com.smarter.com.smarter;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.support.design.widget.Snackbar;
 import android.util.JsonReader;
 import android.util.Log;
 import android.view.View;
@@ -16,8 +21,14 @@ import android.widget.Toast;
 
 //import com.smarter.tools.Converter;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
 import com.smarter.tools.Datetools;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -68,42 +79,67 @@ public class LoginActivity extends Activity {
                         }
                         @Override
                         protected String doInBackground(Void... params) {
+                            ConnectivityManager cm =
+                                    (ConnectivityManager)getApplication().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+                            NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                            boolean isConnected = activeNetwork != null &&
+                                    activeNetwork.isConnectedOrConnecting();
+                            if(!isConnected)
+                                return "Network unavailable";
                             String username = edUser.getText().toString();
                             String passwd = edPasswd.getText().toString();
                             passwd = generateMD5(passwd);
-                            String url = BASE_URL + "/Assignment/webresources/restws.credential/findByUnPw/" + username + "/" + passwd;
+//                            String url = BASE_URL + "/Assignment/webresources/restws.credential/findByUnPw/" + username + "/" + passwd;
+                            String url = BASE_URL + "/Assignment/webresources/restws.credential/postByUnPw/";
                             try {
+                                JSONObject jsonObject = new JSONObject();
+                                jsonObject.put("username", username);
+                                jsonObject.put("passwdHash", passwd);
+                                String postString = jsonObject.toString();
                                 URL restful = new URL(url);
                                 HttpURLConnection connection = null;
                                 connection = (HttpURLConnection) restful.openConnection();
                                 connection.setReadTimeout(10000);
                                 connection.setConnectTimeout(15000);
-                                connection.setRequestMethod("GET");
+//                                connection.setRequestMethod("GET");
+//                                connection.setRequestProperty("Content-Type", "application/json");
+//                                connection.setRequestProperty("Accept", "application/json");
+
+                                connection.setRequestMethod("POST");
                                 connection.setRequestProperty("Content-Type", "application/json");
-                                connection.setRequestProperty("Accept", "application/json");
+                                connection.setDoOutput(true);
+                                connection.getOutputStream().write(postString.getBytes());
+
+                                if (connection.getResponseCode() != 200) {
+                                    Log.e("Register","Connect Error: Code is " + connection.getResponseCode());
+                                    return "Incorrect";
+                                }
 
                                 if (connection.getResponseCode() == 200) {
+                                    BufferedReader reader = new BufferedReader(
+                                            new InputStreamReader(connection.getInputStream()));
 
-                                    InputStream responseBody = connection.getInputStream();
-                                    InputStreamReader responseBodyReader =
-                                            new InputStreamReader(responseBody, "UTF-8");
-                                    JsonReader jsonReader = new JsonReader(responseBodyReader);
+                                    StringBuffer jsonBuilder = new StringBuffer(1024);
+                                    String tmp;
+                                    while ((tmp = reader.readLine()) != null)
+                                        jsonBuilder.append(tmp).append("\n");
+                                    reader.close();
 
-                                    List<Resident> rs = readResidentsArray(jsonReader);
-                                    if (rs.size() != 1 || rs.get(0).getResid() == -1) { // Check
-                                        
-                                        return "Incorrect";
-                                    } else {
+                                    jsonObject = new JSONObject(jsonBuilder.toString());
+                                    Gson gson = new Gson();
+                                    Resident dataToSend  = gson.fromJson(jsonObject.toString(), Resident.class);
+                                    {
                                         // Jump to main screen
                                         Intent intent = new Intent(getApplicationContext(), MainActivity.class);
-                                        Resident dataToSend = rs.get(0);
+//                                        Resident dataToSend = rs.get(0);
                                         intent.putExtra("resident", dataToSend); // using the (String name, Parcelable value) overload!
                                         intent.putExtra("username", username); // using the (String name, Parcelable value) overload!
                                         intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                                         startActivity(intent);
                                         finish();
                                     }
-                                    jsonReader.close();
+//                                    jsonReader.close();
                                 } else {
                                     Log.e("Login","Connect Error: Code is " + connection.getResponseCode());
                                 }
@@ -114,8 +150,8 @@ public class LoginActivity extends Activity {
                                 e1.printStackTrace();
                             } catch (IOException e1) {
                                 e1.printStackTrace();
-                            } catch (ParseException e1) {
-                                e1.printStackTrace();
+                            } catch (JSONException e) {
+                                e.printStackTrace();
                             }
                             return "Done";
                         }
@@ -123,11 +159,30 @@ public class LoginActivity extends Activity {
                         protected void onPostExecute(String value) {
 
                             if (value.equals("Incorrect")){
-                                Toast.makeText(getApplicationContext(), "Incorrect username or password", Toast.LENGTH_SHORT).show();
-                            } else if (value.equals("Done")){
+//                                Toast.makeText(getApplicationContext(), , Toast.LENGTH_SHORT).show();
+                                Snackbar mySnackbar = Snackbar.make(findViewById(R.id.login_layout),
+                                        "Incorrect username or password", Snackbar.LENGTH_SHORT);
+                                View sbView = mySnackbar.getView();
+                                TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                                textView.setTextColor(Color.RED);
+                                mySnackbar.show();
+                            } else if (value.equals("Network unavailable")){
 //                                Toast.makeText(getApplicationContext(), "Login Done", Toast.LENGTH_SHORT).show();
+                                Snackbar mySnackbar = Snackbar.make(findViewById(R.id.login_layout),
+                                        "Network unavailable", Snackbar.LENGTH_SHORT);
+                                View sbView = mySnackbar.getView();
+                                TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                                textView.setTextColor(Color.RED);
+                                mySnackbar.show();
                             } else {
-                                Toast.makeText(getApplicationContext(), "ERROR", Toast.LENGTH_SHORT).show();
+//                                Toast.makeText(getApplicationContext(), "ERROR", Toast.LENGTH_SHORT).show();
+
+                                Snackbar mySnackbar = Snackbar.make(findViewById(R.id.login_layout),
+                                        "ERROR", Snackbar.LENGTH_SHORT);
+                                View sbView = mySnackbar.getView();
+                                TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                                textView.setTextColor(Color.RED);
+                                mySnackbar.show();
                             }
                             dismissProgressDialog();
                         }

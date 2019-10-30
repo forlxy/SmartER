@@ -1,7 +1,11 @@
 package com.smarter.tools;
 
 import android.content.Context;
+import android.graphics.Color;
+import android.support.design.widget.Snackbar;
 import android.util.Pair;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.smarter.com.smarter.R;
@@ -76,6 +80,7 @@ public class Weather {
         final JSONObject json = Weather.getJSON(context, pair.first.toString(), pair.second.toString());
         if(json == null){
             Toast.makeText(context,context.getString(R.string.place_not_found),Toast.LENGTH_LONG).show();
+
         } else try {
             JSONObject main = json.getJSONObject("main");
             d = main.getDouble("temp");

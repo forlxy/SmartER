@@ -159,7 +159,10 @@ public class HomeFragment extends Fragment {
             @Override
             protected void onPostExecute(final Pair<Double, Double> pair) {
                 WeatherUpdater wu = new WeatherUpdater();
-                wu.execute(pair.first.toString(), pair.second.toString());
+                if(pair!=null)
+                    wu.execute(pair.first.toString(), pair.second.toString());
+                else
+                    temperature.setText("Current temperature is unavailable");
                 dismissProgressDialog();
             }
         }.execute();

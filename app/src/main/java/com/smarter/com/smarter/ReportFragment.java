@@ -58,6 +58,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -66,6 +67,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutionException;
 
 import static com.smarter.tools.Datetools.getDateOffsetD;
@@ -87,7 +89,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
     List<Entry> rightEntries;
     List<BarEntry> barEntries;
     List<PieEntry> pieEntries;;
-    AsyncTask<Void, Void, String> asyncTask;
+    AsyncTask<Void, Void, ArrayList<String>> asyncTask;
     private Resident object;
     LinearLayout chartLayout;
     Calendar myCalendar;
@@ -106,8 +108,6 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
         View newView = inflater.inflate(R.layout.fragment_report, container, false);
         availableDate = "";
-//        btChart = newView.findViewById(R.id.bt_chart);
-//        spChart = newView.findViewById(R.id.sp_chart);
         spChartType = newView.findViewById(R.id.sp_charttype);
         list = Arrays.asList(getResources().getStringArray(R.array.charttype_array));
         adapter = new ArrayAdapter<String>(getActivity(), R.layout.spinner_item,list);
@@ -117,6 +117,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
         datePicker = new EditText(getActivity());
         datePicker.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        datePicker.setHint("Select query date");
 
         lineChart = new LineChart(getActivity());
         barChart = new BarChart(getActivity());
@@ -229,6 +230,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
             type = position;
             if (type == 0){
                 datePicker = new EditText(getActivity());
+                datePicker.setHint("Select query date");
                 chartLayout.addView(datePicker);
                 chartLayout.addView(pieChart);
                 updateChart(viewType, type);
@@ -266,28 +268,28 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
     public void getUsageTemp(final int dateOffset, final int pos, final int type)
     {
 
-        asyncTask = new AsyncTask<Void, Void, String>() {
+        asyncTask = new AsyncTask<Void, Void, ArrayList<String>>() {
             @Override
             protected void onPreExecute() {
                 super.onPreExecute();
                 showProgressDialog();
             }
             @Override
-            protected String doInBackground(Void... voids) {
+            protected ArrayList<String> doInBackground(Void... voids) {
+                ArrayList returnList = new ArrayList();
+                returnList.clear();
                 if (type == 2) {
                     int counter = 1;
                     String view = "hourly";
                     if (pos == 1) {
                         view = "daily";
-                        counter = 30;
+//                        counter = 1;
                     }
 
-                    for (int j = counter; j >= dateOffset; j--) {
-                        String redURL = BASE_URL + "/Assignment/webresources/restws.usage/getHourDailyUsage/" +
+                    for (int j = counter; j >= dateOffset && j - dateOffset <= 100; j--) {
+                        String redURL = BASE_URL + "/Assignment/webresources/restws.usage/getHourDailyUsageForReport/" +
                                 object.getResid()
-//                            1
                                 + "/"
-//                        + "2018-03-07"
                                 + Datetools.getDateOffset(j)
                                 + "/" + view;
                         try {
@@ -323,8 +325,22 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
                                     rightEntries.add(new Entry(hour, (float) temp));
                                 } else {
                                     availableDate = "";
-                                    leftEntries.add(new Entry(30 - j, (float) usage));
-                                    rightEntries.add(new Entry(30 - j, (float) temp));
+                                    leftEntries.add(new Entry(i, (float) usage));
+                                    rightEntries.add(new Entry(i, (float) temp));
+
+
+                                    DateFormat dateFormat = new SimpleDateFormat(
+                                            "EEE MMM dd HH:mm:ss yyyy", Locale.ENGLISH);
+
+                                    String dateString = jsonObject.getString("usagedate");
+                                    int inset = 18;
+                                    String s0 = dateString.substring(0, inset);
+                                    String s1 = dateString.substring(dateString.length() - 5, dateString.length());
+                                    dateString = s0 + s1;
+
+
+                                    Date date = dateFormat.parse(dateString);
+                                    returnList.add(Datetools.getQueryDate(date));
                                 }
                             }
 
@@ -344,6 +360,8 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
                             e1.printStackTrace();
                         } catch (JSONException e) {
                             e.printStackTrace();
+                        } catch (ParseException e) {
+                            e.printStackTrace();
                         }
                     }
                 } else if (type == 1){
@@ -352,15 +370,15 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
                     String view = "hourly";
                     if (pos == 1) {
                         view = "daily";
-                        counter = 30;
+//                        counter = 30;
                     }
 
-                    for (int j = counter; j >= dateOffset; j--) {
-                        String redURL = BASE_URL + "/Assignment/webresources/restws.usage/getHourDailyUsage/" +
+                    for (int j = counter; j >= dateOffset && j - dateOffset <= 100; j--) {
+                        String redURL = BASE_URL + "/Assignment/webresources/restws.usage/getHourDailyUsageForReport/" +
                                 object.getResid()
 //                            1
                                 + "/"
-//                        + "2018-03-07"
+//                        + "2018-04-01"
                                 + Datetools.getDateOffset(j)
                                 + "/" + view;
                         try {
@@ -394,12 +412,25 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
                                     barEntries.add(new BarEntry(hour, (float) usage));
                                 } else {
                                     availableDate = "";
-                                    barEntries.add(new BarEntry(30 - j, (float) usage));
+                                    barEntries.add(new BarEntry(i, (float) usage));
+
+                                    DateFormat dateFormat = new SimpleDateFormat(
+                                            "EEE MMM dd HH:mm:ss yyyy", Locale.ENGLISH);
+
+                                    String dateString = jsonObject.getString("usagedate");
+                                    int inset = 18;
+                                    String s0 = dateString.substring(0, inset);
+                                    String s1 = dateString.substring(dateString.length() - 5, dateString.length());
+                                    dateString = s0 + s1;
+
+
+                                    Date date = dateFormat.parse(dateString);
+                                    returnList.add(Datetools.getQueryDate(date));
                                 }
                             }
-
-
                             redConnection.disconnect();
+
+
                             if (pos == 0 && jsonRead.length() == 0)
                                 j = j + 2;
                             else if (pos == 1)
@@ -413,6 +444,8 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
                         } catch (IOException e1) {
                             e1.printStackTrace();
                         } catch (JSONException e) {
+                            e.printStackTrace();
+                        } catch (ParseException e) {
                             e.printStackTrace();
                         }
                     }
@@ -474,17 +507,17 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
                     }
                 }
 
-                return "Done";
+                return returnList;
             }
 
             @Override
-            protected void onPostExecute(String s) {
+            protected void onPostExecute(ArrayList<String> s) {
                 super.onPostExecute(s);
                 dismissProgressDialog();
                 if (type == 2)
-                    showLineChart(pos);
+                    showLineChart(pos, s);
                 else if (type == 1)
-                    showBarChart(pos);
+                    showBarChart(pos, s);
                 else if (type == 0)
                     showPieChart(pos);
 
@@ -495,7 +528,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
     }
 
-    private void showBarChart(int pos) {
+    private void showBarChart(int pos, ArrayList<String> s) {
 
         barChart.getDescription().setText(availableDate);
         if (barEntries.size() != 0) {
@@ -507,7 +540,11 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
             if (pos == 0) {
                 label = new String[]{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"};
             } else {
-                label = new String[]{Datetools.getDateOffset(30), Datetools.getDateOffset(29), Datetools.getDateOffset(28), Datetools.getDateOffset(27), Datetools.getDateOffset(26),
+                if(s.size() != 0)
+                    label = s.toArray(new String[s.size()]);
+                else
+                    label =
+                        new String[]{Datetools.getDateOffset(30), Datetools.getDateOffset(29), Datetools.getDateOffset(28), Datetools.getDateOffset(27), Datetools.getDateOffset(26),
                         Datetools.getDateOffset(25), Datetools.getDateOffset(24), Datetools.getDateOffset(23), Datetools.getDateOffset(22),
                         Datetools.getDateOffset(21), Datetools.getDateOffset(20), Datetools.getDateOffset(19), Datetools.getDateOffset(18),
                         Datetools.getDateOffset(17), Datetools.getDateOffset(16), Datetools.getDateOffset(15), Datetools.getDateOffset(14),
@@ -518,8 +555,8 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
             IAxisValueFormatter formatter = new IAxisValueFormatter() {
                 @Override
                 public String getFormattedValue(float value, AxisBase axis) {
-                    if (label.length == 24 && value >= 24)
-                        return "ERROR";
+                    if (value >= label.length || value < 0)
+                        return "EMPTY";
                     return label[(int) value];
                 }
             };
@@ -607,8 +644,8 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
         pieChart.setUsePercentValues(true);
         pieChart.setDragDecelerationFrictionCoef(0.95f);
 
-        MyMarkerView marker = new MyMarkerView(getActivity(),R.layout.marker_view);
-        pieChart.setMarker(marker);
+//        MyMarkerView marker = new MyMarkerView(getActivity(),R.layout.marker_view);
+//        pieChart.setMarker(marker);
         pieChart.setDrawHoleEnabled(true);
         pieChart.setHoleColor(Color.WHITE);
 
@@ -647,7 +684,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
     }
 
 
-    public void showLineChart(int pos) {
+    public void showLineChart(int pos, ArrayList<String> s) {
         lineChart.getDescription().setText(availableDate);
         if (leftEntries.size() != 0 && rightEntries.size() != 0) {
             if (lineChart.getData() != null &&
@@ -704,7 +741,11 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
             if (pos == 0) {
                 label = new String[]{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23"};
             } else {
-                label = new String[]{Datetools.getDateOffset(30), Datetools.getDateOffset(29), Datetools.getDateOffset(28), Datetools.getDateOffset(27), Datetools.getDateOffset(26),
+                if(s.size() != 0)
+                    label = s.toArray(new String[s.size()]);
+                else
+                    label =
+                        new String[]{Datetools.getDateOffset(30), Datetools.getDateOffset(29), Datetools.getDateOffset(28), Datetools.getDateOffset(27), Datetools.getDateOffset(26),
                         Datetools.getDateOffset(25), Datetools.getDateOffset(24), Datetools.getDateOffset(23), Datetools.getDateOffset(22),
                         Datetools.getDateOffset(21), Datetools.getDateOffset(20), Datetools.getDateOffset(19), Datetools.getDateOffset(18),
                         Datetools.getDateOffset(17), Datetools.getDateOffset(16), Datetools.getDateOffset(15), Datetools.getDateOffset(14),
@@ -715,8 +756,8 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
             IAxisValueFormatter formatter = new IAxisValueFormatter() {
                 @Override
                 public String getFormattedValue(float value, AxisBase axis) {
-                    if (label.length == 24 && value >= 24)
-                        return "ERROR";
+                    if (value >= label.length || value < 0)
+                        return "EMPTY";
                     return label[(int) value];
                 }
             };
@@ -731,8 +772,8 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 
             YAxis leftAxis = lineChart.getAxisLeft();
             leftAxis.setTextColor(ColorTemplate.getHoloBlue());
-            leftAxis.setAxisMaximum(10);
-            leftAxis.setAxisMinimum(0);
+//            leftAxis.setAxisMaximum(10);
+//            leftAxis.setAxisMinimum(0);
 //                leftAxis.setDrawGridLines(true);
 //                leftAxis.setGranularityEnabled(true);
 
@@ -745,7 +786,7 @@ public class ReportFragment extends Fragment implements AdapterView.OnItemSelect
 //                rightAxis.setGranularityEnabled(false);
 
 
-            lineChart.animateX(2500);
+//            lineChart.animateX(2500);
             lineChart.invalidate();
         } else {
             lineChart.clear();

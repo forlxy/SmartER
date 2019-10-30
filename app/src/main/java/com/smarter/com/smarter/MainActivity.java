@@ -33,12 +33,6 @@ public class MainActivity extends AppCompatActivity
 
     Resident object;
     String username;
-    //    FeedReaderDbHelper mDbHelper = new FeedReaderDbHelper(getContext());
-//    private String address = "28 Marquis St Ashburton VIC";
-//    private String fname = "Sam";
-//    private String postcode;
-//    private String providerName;
-//    private Integer resid;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +58,6 @@ public class MainActivity extends AppCompatActivity
 
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-
 
         DrawerLayout drawer = findViewById(R.id.drawer_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(

@@ -32,8 +32,9 @@ import static com.smarter.tools.Datetools.getDateOffsetD;
 import static com.smarter.tools.Datetools.parse;
 
 public class Tool {
-    public static String BASE_URL = "http://192.168.0.17:8080";
-//    public static String BASE_URL = "http://118.139.93.83:8080";
+//    public static String BASE_URL = "http://192.168.0.17:8080";
+    public static String BASE_URL = "http://118.139.69.170:8080";
+
     private static double HOURLY_THRESHOLD = 1.7;
     private static double DAILY_THRESHOLD = 21;
 

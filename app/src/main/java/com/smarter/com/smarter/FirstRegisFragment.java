@@ -7,15 +7,18 @@ import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.app.ProgressDialog;
 import android.content.Intent;
+import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.design.widget.Snackbar;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -64,7 +67,7 @@ public class FirstRegisFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        View root = inflater.inflate(R.layout.fragment_reg_first, container, false);
+        final View root = inflater.inflate(R.layout.fragment_reg_first, container, false);
 
         et_username = root.findViewById(R.id.et_re_username);
         et_password = root.findViewById(R.id.et_re_password);
@@ -98,7 +101,13 @@ public class FirstRegisFragment extends Fragment {
                             if (!et_password.getText().toString().equals(et_re_password.getText().toString())) {
                                 getActivity().runOnUiThread(new Runnable() {
                                     public void run() {
-                                        Toast.makeText(getActivity(), "Passwords are not same!", Toast.LENGTH_LONG).show();
+//                                        Toast.makeText(getActivity(), "Passwords are not same!", Toast.LENGTH_LONG).show();
+                                        Snackbar mySnackbar = Snackbar.make(root.findViewById(R.id.reg_first_layout),
+                                                "Passwords are not same!", Snackbar.LENGTH_SHORT);
+                                        View sbView = mySnackbar.getView();
+                                        TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                                        textView.setTextColor(Color.RED);
+                                        mySnackbar.show();
                                     }
                                 });
                                 return "Error: Password";
@@ -150,7 +159,13 @@ public class FirstRegisFragment extends Fragment {
                                 {
                                     getActivity().runOnUiThread(new Runnable() {
                                         public void run() {
-                                            Toast.makeText(getActivity(), "Username already existed!", Toast.LENGTH_LONG).show();
+//                                            Toast.makeText(getActivity(), "Username already existed!", Toast.LENGTH_LONG).show();
+                                            Snackbar mySnackbar = Snackbar.make(root.findViewById(R.id.reg_first_layout),
+                                                    "Username already existed!", Snackbar.LENGTH_SHORT);
+                                            View sbView = mySnackbar.getView();
+                                            TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                                            textView.setTextColor(Color.RED);
+                                            mySnackbar.show();
                                         }
                                     });
                                     return "Error: Username";

@@ -7,11 +7,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.database.SQLException;
+import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Parcel;
+import android.support.design.widget.Snackbar;
 import android.util.JsonReader;
 import android.util.Log;
 import android.util.Pair;
+import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -82,6 +88,14 @@ public class DbUpdateReceiver extends BroadcastReceiver {
             }
             @Override
             protected String doInBackground(Void... voids) {
+                ConnectivityManager cm =
+                        (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                boolean isConnected = activeNetwork != null &&
+                        activeNetwork.isConnectedOrConnecting();
+                if(!isConnected)
+                    return "Network unavailable";
                 temperature = Weather.getWeather(address,context);
                 return null;
             }
@@ -89,16 +103,22 @@ public class DbUpdateReceiver extends BroadcastReceiver {
             @Override
             protected void onPostExecute(String s) {
                 super.onPostExecute(s);
-                hour = Datetools.getCurHour();
-                rng = new RandomGenerator();
-                count++;
-                Log.i("Alarmer_Check","alarm!");
-                updateToDatabase();
-                if(count == 24 || flag) {
-                    count = 0;
-                    updateToServer();
+                if (s!= null && s.equals("Network unavailable")) {
+//                                Toast.makeText(getApplicationContext(), "Login Done", Toast.LENGTH_SHORT).show();
+                    Log.e("error", "network unavailable");
                 }
+                else {
+                    hour = Datetools.getCurHour();
+                    rng = new RandomGenerator();
+                    count++;
+                    Log.i("Alarmer_Check", "alarm!");
+                    updateToDatabase();
+                    if (count == 24 || flag) {
+                        count = 0;
+                        updateToServer();
+                    }
 //                Toast.makeText(context, "Alarm....", Toast.LENGTH_SHORT).show();
+                }
             }
         }.execute();
     }
@@ -113,6 +133,16 @@ public class DbUpdateReceiver extends BroadcastReceiver {
         jsonObject.put("washmach", c.getDouble(5));
         jsonObject.put("temperature", c.getDouble(6));
         return jsonObject;
+    }
+
+    public void deleteAllData(){
+        try {
+            dbManager.open();
+        }catch(SQLException e) {
+            e.printStackTrace();
+        }
+        dbManager.deleteAll();
+        dbManager.close();
     }
 
     public void deleteData(){
@@ -130,47 +160,25 @@ public class DbUpdateReceiver extends BroadcastReceiver {
     @SuppressLint("StaticFieldLeak")
     private void updateToServer() {
         new AsyncTask<Void, Void, String>() {
-//            ProgressDialog progDailog;
-//            @Override
-//            protected void onPreExecute() {
-//                super.onPreExecute();
-//                progDailog = new ProgressDialog(context);
-//                progDailog.setMessage("Loading...");
-//                progDailog.setIndeterminate(false);
-//                progDailog.setProgressStyle(ProgressDialog.STYLE_SPINNER);
-//                progDailog.setCancelable(false);
-//                progDailog.show();
-//            }
             @Override
             protected String doInBackground(Void... voids) {
-                String url = BASE_URL + "/Assignment/webresources/restws.usage/";
+
+                ConnectivityManager cm =
+                        (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
+
+                NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                boolean isConnected = activeNetwork != null &&
+                        activeNetwork.isConnectedOrConnecting();
+                if(!isConnected)
+                    return "Network unavailable";
+
+                String url = BASE_URL + "/Assignment/webresources/restws.usage/postUsage ";
                 try {
                     URL restful = new URL(url);
-                    HttpURLConnection connection,readconnection;
-                    readconnection = (HttpURLConnection) restful.openConnection();
-                    readconnection.setReadTimeout(10000);
-                    readconnection.setConnectTimeout(15000);
-                    readconnection.setRequestMethod("GET");
-                    readconnection.setRequestProperty("Content-Type", "application/json");
-                    readconnection.setRequestProperty("Accept", "application/json");
-
-                    BufferedReader reader = new BufferedReader(
-                            new InputStreamReader(readconnection.getInputStream()));
-
-                    StringBuffer jsonBuilder = new StringBuffer(1024);
-                    String tmp;
-                    while ((tmp = reader.readLine()) != null)
-                        jsonBuilder.append(tmp).append("\n");
-                    reader.close();
-                    JSONArray jsonRead = new JSONArray(jsonBuilder.toString());
-                    Integer usageid = jsonRead.getJSONObject(jsonRead.length()-1).getInt("usageid") + 1;
-
-                    JSONArray jsonArray = new JSONArray();
+                    HttpURLConnection connection;
                     Gson gson = new Gson();
                     String myData = gson.toJson(object);
                     JSONObject resid = new JSONObject(myData);
-
-
 //                    deleteData();
                     try {
                         dbManager.open();
@@ -190,16 +198,12 @@ public class DbUpdateReceiver extends BroadcastReceiver {
                             connection.setDoOutput(true);
                             JSONObject jsonObject = readData(c);
                             jsonObject.put("resid",resid);
-                            jsonObject.put("usageid",usageid);
-//                            jsonArray.put(jsonObject);
                             String json = jsonObject.toString();
                             connection.getOutputStream().write(json.getBytes());
 
-                            if (connection.getResponseCode() != 204) {
+                            if (connection.getResponseCode() != 200) {
                                 Log.e("Login","Connect Error: Code is " + connection.getResponseCode());
                             }
-
-                            usageid++;
 
                             connection.disconnect();
                         } while (c.moveToNext());
@@ -225,8 +229,13 @@ public class DbUpdateReceiver extends BroadcastReceiver {
             @Override
             protected void onPostExecute(String s) {
                 super.onPostExecute(s);
-                deleteData();
-//                progDailog.dismiss();
+//                deleteData();
+                if (s!= null && s.equals("Network unavailable")) {
+//                                Toast.makeText(getApplicationContext(), "Login Done", Toast.LENGTH_SHORT).show();
+                   Log.e("error", "network unavailable");
+                }
+                else
+                    deleteAllData();
 
                 Log.i("Alarmer_Check","Done Upload!");
             }

@@ -6,9 +6,13 @@ import android.app.Fragment;
 import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.design.widget.Snackbar;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -18,6 +22,7 @@ import android.widget.Button;
 import android.widget.DatePicker;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.gson.Gson;
@@ -60,7 +65,7 @@ public class SecondRegisFragment extends Fragment {
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 
-        View root = inflater.inflate(R.layout.fragment_reg_second, container, false);
+        final View root = inflater.inflate(R.layout.fragment_reg_second, container, false);
 
         context = getActivity();
         username = getArguments().getString("username");
@@ -98,8 +103,16 @@ public class SecondRegisFragment extends Fragment {
                     }
                     @Override
                     protected String doInBackground(Void... voids) {
-                        String redURL = BASE_URL + "/Assignment/webresources/restws.resident/";
-                        String creURL = BASE_URL + "/Assignment/webresources/restws.credential/";
+                        ConnectivityManager cm =
+                                (ConnectivityManager)getActivity().getSystemService(Context.CONNECTIVITY_SERVICE);
+
+                        NetworkInfo activeNetwork = cm.getActiveNetworkInfo();
+                        boolean isConnected = activeNetwork != null &&
+                                activeNetwork.isConnectedOrConnecting();
+                        if(!isConnected)
+                            return "Network unavailable";
+                        String redURL = BASE_URL + "/Assignment/webresources/restws.resident/postResident";
+                        String creURL = BASE_URL + "/Assignment/webresources/restws.credential/postCrential";
                         try {
                             URL redRestful = new URL(redURL);
                             URL creRestful = new URL(creURL);
@@ -107,40 +120,8 @@ public class SecondRegisFragment extends Fragment {
                             redConnection = (HttpURLConnection) redRestful.openConnection();
                             redConnection.setReadTimeout(10000);
                             redConnection.setConnectTimeout(15000);
-                            redConnection.setRequestMethod("GET");
-                            redConnection.setRequestProperty("Content-Type", "application/json");
-                            redConnection.setRequestProperty("Accept", "application/json");
 
-                            BufferedReader reader = new BufferedReader(
-                                    new InputStreamReader(redConnection.getInputStream()));
-
-                            StringBuffer jsonBuilder = new StringBuffer(1024);
-                            String tmp;
-                            while ((tmp = reader.readLine()) != null)
-                                jsonBuilder.append(tmp).append("\n");
-                            reader.close();
-                            JSONArray jsonRead = new JSONArray(jsonBuilder.toString());
-
-                            Integer resid = jsonRead.getJSONObject(jsonRead.length() - 1).getInt("resid") + 1;
-
-                            creConnection = (HttpURLConnection) creRestful.openConnection();
-                            creConnection.setReadTimeout(10000);
-                            creConnection.setConnectTimeout(15000);
-                            creConnection.setRequestMethod("GET");
-                            creConnection.setRequestProperty("Content-Type", "application/json");
-                            creConnection.setRequestProperty("Accept", "application/json");
-
-                            reader = new BufferedReader(
-                                    new InputStreamReader(creConnection.getInputStream()));
-
-                            jsonBuilder = new StringBuffer(1024);
-                            while ((tmp = reader.readLine()) != null)
-                                jsonBuilder.append(tmp).append("\n");
-                            reader.close();
-                            jsonRead = new JSONArray(jsonBuilder.toString());
-
-
-                            newResident = new Resident(resid, et_fname.getText().toString(), et_lname.getText().toString(), Datetools.regParse(et_date.getText().toString()),
+                            newResident = new Resident(null, et_fname.getText().toString(), et_lname.getText().toString(), Datetools.regParse(et_date.getText().toString()),
                                     et_address.getText().toString(), et_postcode.getText().toString(),et_email.getText().toString(), et_phone.getText().toString(),
                                     Integer.parseInt(sp_num.getSelectedItem().toString()), sp_provider.getSelectedItem().toString());
                             String hash = LoginActivity.generateMD5(password);
@@ -150,14 +131,6 @@ public class SecondRegisFragment extends Fragment {
 
                             JSONObject jsonResident = new JSONObject(myData);
                             jsonResident.put("dob", Datetools.toString(newResident.getDob()));
-                            JSONObject jsonCredential = new JSONObject();
-
-                            jsonCredential.put("username",username);
-                            jsonCredential.put("passwdHash",hash);
-                            jsonCredential.put("regdate", Datetools.getDate());
-                            jsonCredential.put("resid", jsonResident);
-
-
 
                             redConnection = (HttpURLConnection) redRestful.openConnection();
                             redConnection.setReadTimeout(10000);
@@ -168,24 +141,61 @@ public class SecondRegisFragment extends Fragment {
                             String json = jsonResident.toString();
                             redConnection.getOutputStream().write(json.getBytes());
 
-                            if (redConnection.getResponseCode() != 204) {
+                            if (redConnection.getResponseCode() == 400) {
+                                Log.e("Register","Connect Error: Code is " + redConnection.getResponseCode());
+                                return "TOOLONG";
+                            }
+                            if (redConnection.getResponseCode() != 200) {
                                 Log.e("Register","Connect Error: Code is " + redConnection.getResponseCode());
                                 return "ERROR";
                             }
 
+
+                            BufferedReader reader = new BufferedReader(
+                                    new InputStreamReader(redConnection.getInputStream()));
+
+                            StringBuffer jsonBuilder = new StringBuffer(1024);
+                            String tmp;
+                            while ((tmp = reader.readLine()) != null)
+                                jsonBuilder.append(tmp).append("\n");
+                            reader.close();
+
+                            JSONObject tmpObject = new JSONObject(jsonBuilder.toString());
+                            Integer resid = tmpObject.getInt("resid");
+
+                            newResident.setResid(resid);
+
+                            gson = new Gson();
+                            myData = gson.toJson(newResident);
+
+                            jsonResident = new JSONObject(myData);
+                            jsonResident.put("dob", Datetools.toString(newResident.getDob()));
+                            JSONObject jsonCredential = new JSONObject();
+
+                            jsonCredential.put("username",username);
+                            jsonCredential.put("passwdHash",hash);
+                            jsonCredential.put("regdate", Datetools.getDate());
+                            jsonCredential.put("resid", jsonResident);
+
+
+                            json = jsonCredential.toString();
                             creConnection = (HttpURLConnection) creRestful.openConnection();
                             creConnection.setReadTimeout(10000);
                             creConnection.setConnectTimeout(15000);
                             creConnection.setRequestMethod("POST");
                             creConnection.setRequestProperty("Content-Type", "application/json");
                             creConnection.setDoOutput(true);
-                            json = jsonCredential.toString();
                             creConnection.getOutputStream().write(json.getBytes());
 
-                            if (creConnection.getResponseCode() != 204) {
+                            if (redConnection.getResponseCode() == 400) {
+                                Log.e("Register","Connect Error: Code is " + redConnection.getResponseCode());
+                                return "TOOLONG";
+                            }
+                            if (creConnection.getResponseCode() != 200) {
                                 Log.e("Register","Connect Error: Code is " + creConnection.getResponseCode());
                                 return "ERROR";
                             }
+
 
                             redConnection.disconnect();
                             creConnection.disconnect();
@@ -213,6 +223,39 @@ public class SecondRegisFragment extends Fragment {
                             intent.putExtra("username", username); // using the (String name, Parcelable value) overload!
                             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                             startActivity(intent);
+                        }
+                        else if(s.equals("ERROR")) {
+                            Snackbar mySnackbar = Snackbar.make(root.findViewById(R.id.second_reg_layout),
+                                    "ERROR", Snackbar.LENGTH_SHORT);
+                            View sbView = mySnackbar.getView();
+                            TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                            textView.setTextColor(Color.RED);
+                            mySnackbar.show();
+                        }
+                        else if(s.equals("TOOLONG")) {
+                            Snackbar mySnackbar = Snackbar.make(root.findViewById(R.id.second_reg_layout),
+                                    "Input is too long!", Snackbar.LENGTH_SHORT);
+                            View sbView = mySnackbar.getView();
+                            TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                            textView.setTextColor(Color.RED);
+                            mySnackbar.show();
+                        }
+                        else if (s.equals("Incorrect")){
+//                                Toast.makeText(getApplicationContext(), , Toast.LENGTH_SHORT).show();
+                            Snackbar mySnackbar = Snackbar.make(root.findViewById(R.id.second_reg_layout),
+                                    "Incorrect username or password", Snackbar.LENGTH_SHORT);
+                            View sbView = mySnackbar.getView();
+                            TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                            textView.setTextColor(Color.RED);
+                            mySnackbar.show();
+                        } else if (s.equals("Network unavailable")) {
+//                                Toast.makeText(getApplicationContext(), "Login Done", Toast.LENGTH_SHORT).show();
+                            Snackbar mySnackbar = Snackbar.make(root.findViewById(R.id.second_reg_layout),
+                                    "Network unavailable", Snackbar.LENGTH_SHORT);
+                            View sbView = mySnackbar.getView();
+                            TextView textView = (TextView) sbView.findViewById(android.support.design.R.id.snackbar_text);
+                            textView.setTextColor(Color.RED);
+                            mySnackbar.show();
                         }
                         dismissProgressDialog();
                     }
