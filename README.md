@@ -2,7 +2,7 @@
 
 ## Overview
 
-This repository contains code for the SmartER project, which contains both the client slide-android application and the server side-RESTFul Services. The **Android client** application which communicates with a **RESTful web server** established for manipulating, displaying the data from the back-end database and generating reports on Android devices.
+This repository contains code for the SmartER project, which is consist of both the client-side android application and the server-side RESTFul Services. The **Android client** application which communicates with a **RESTful web server**  that established for manipulating, displaying the data from the back-end database and generating reports on Android devices.
 
 - **Technical Stack:**
   - Client Side: **Android + SQLite**
@@ -15,5 +15,4 @@ This repository contains code for the SmartER project, which contains both the c
 - Implemented parsing JSON data from the server and export service API to achieve remote function call.
 - Created accurate map markers based on user addresses saved in the backend database.
 - Generated types of report charts with MPAndroidChart.
-
 
